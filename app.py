@@ -1,6 +1,7 @@
 import os
 import logging
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_file
+from io import StringIO
 from utils.youtube import get_video_transcript
 from utils.summarizer import generate_summary
 
@@ -29,7 +30,7 @@ def process_video():
 
         # Generate summary
         summary = generate_summary(transcript)
-        
+
         return jsonify({
             'success': True,
             'transcript': transcript,
@@ -38,6 +39,29 @@ def process_video():
 
     except Exception as e:
         logger.error(f"Error processing video: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/download-transcript', methods=['POST'])
+def download_transcript():
+    try:
+        transcript = request.form.get('transcript')
+        if not transcript:
+            return jsonify({'error': 'No transcript provided'}), 400
+
+        # Create a text file in memory
+        buffer = StringIO()
+        buffer.write(transcript)
+        buffer.seek(0)
+
+        return send_file(
+            buffer,
+            mimetype='text/plain',
+            as_attachment=True,
+            download_name='transcript.txt'
+        )
+
+    except Exception as e:
+        logger.error(f"Error downloading transcript: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

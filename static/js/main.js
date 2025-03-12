@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', function() {
     const results = document.getElementById('results');
     const transcriptDiv = document.getElementById('transcript');
     const summaryDiv = document.getElementById('summary');
+    const downloadBtn = document.getElementById('downloadBtn');
 
     function showLoading(show) {
         submitBtn.disabled = show;
@@ -24,10 +25,42 @@ document.addEventListener('DOMContentLoaded', function() {
         errorAlert.textContent = '';
     }
 
+    downloadBtn.addEventListener('click', async function() {
+        try {
+            const formData = new FormData();
+            formData.append('transcript', transcriptDiv.textContent);
+
+            const response = await fetch('/download-transcript', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!response.ok) {
+                const data = await response.json();
+                throw new Error(data.error || 'Failed to download transcript');
+            }
+
+            // Create a blob from the response and trigger download
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'transcript.txt';
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+
+        } catch (error) {
+            showError(error.message);
+        }
+    });
+
     form.addEventListener('submit', async function(e) {
         e.preventDefault();
         hideError();
         results.classList.add('d-none');
+        downloadBtn.disabled = true;
         showLoading(true);
 
         try {
@@ -47,6 +80,7 @@ document.addEventListener('DOMContentLoaded', function() {
             transcriptDiv.textContent = data.transcript;
             summaryDiv.textContent = data.summary;
             results.classList.remove('d-none');
+            downloadBtn.disabled = false;
 
         } catch (error) {
             showError(error.message);
