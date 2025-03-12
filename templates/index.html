@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>YouTube Video Transcriber & Summarizer</title>
+    <link href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/custom.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-md-8">
+                <h1 class="text-center mb-4">YouTube Video Transcriber & Summarizer</h1>
+                
+                <div class="card">
+                    <div class="card-body">
+                        <form id="transcribeForm">
+                            <div class="mb-3">
+                                <label for="youtube_url" class="form-label">YouTube Video URL</label>
+                                <input type="url" class="form-control" id="youtube_url" name="youtube_url" 
+                                       placeholder="https://www.youtube.com/watch?v=..." required>
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100" id="submitBtn">
+                                <span id="submitBtnText">Transcribe & Summarize</span>
+                                <div class="spinner-border spinner-border-sm d-none" id="submitSpinner" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <div id="errorAlert" class="alert alert-danger mt-4 d-none" role="alert"></div>
+
+                <div id="results" class="mt-4 d-none">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <h5 class="mb-0">Summary</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="summary"></div>
+                        </div>
+                    </div>
+
+                    <div class="card">
+                        <div class="card-header">
+                            <h5 class="mb-0">Full Transcript</h5>
+                        </div>
+                        <div class="card-body">
+                            <div id="transcript"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>
