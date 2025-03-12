@@ -1,7 +1,7 @@
 import os
 import logging
 from flask import Flask, render_template, request, jsonify, send_file
-from io import StringIO
+from io import BytesIO
 from utils.youtube import get_video_transcript
 from utils.summarizer import generate_summary
 
@@ -48,11 +48,12 @@ def download_transcript():
         if not transcript:
             return jsonify({'error': 'No transcript provided'}), 400
 
-        # Create a text file in memory
-        buffer = StringIO()
-        buffer.write(transcript)
+        # Create a binary buffer for the file
+        buffer = BytesIO()
+        buffer.write(transcript.encode('utf-8'))
         buffer.seek(0)
 
+        logger.debug("Sending transcript file for download")
         return send_file(
             buffer,
             mimetype='text/plain',
