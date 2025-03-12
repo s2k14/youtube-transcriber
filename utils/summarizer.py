@@ -9,19 +9,28 @@ logger = logging.getLogger(__name__)
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 openai = OpenAI(api_key=OPENAI_API_KEY)
 
-def generate_summary(text):
+SUMMARY_LENGTH_TOKENS = {
+    'short': 250,
+    'medium': 500,
+    'long': 1000
+}
+
+def generate_summary(text, length='medium'):
     """Generate a summary of the given text using OpenAI's GPT model."""
     try:
+        max_tokens = SUMMARY_LENGTH_TOKENS.get(length, 500)
+        length_prompt = f"Create a {length} summary"
+
         response = openai.chat.completions.create(
             model="gpt-4o",
             messages=[
                 {
                     "role": "system",
-                    "content": "You are a skilled summarizer. Create a concise but comprehensive summary of the following transcript. Focus on the main points and key takeaways."
+                    "content": f"You are a skilled summarizer. {length_prompt} of the following transcript. Focus on the main points and key takeaways."
                 },
                 {"role": "user", "content": text}
             ],
-            max_tokens=500
+            max_tokens=max_tokens
         )
         return response.choices[0].message.content
     except Exception as e:
