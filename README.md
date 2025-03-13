@@ -56,6 +56,42 @@ python main.py
 
 The application will be available at `http://localhost:5000`
 
+## Testing
+
+The project includes a comprehensive test suite covering utilities, API endpoints, and database models. No external services are required for testing as all external APIs are mocked.
+
+### Running All Tests
+
+To run the complete test suite:
+
+```bash
+python run_tests.py
+```
+
+### Running Specific Tests
+
+To run a specific test file:
+
+```bash
+python -m unittest tests.test_youtube
+python -m unittest tests.test_summarizer
+python -m unittest tests.test_app
+python -m unittest tests.test_models
+```
+
+To run a specific test case:
+
+```bash
+python -m unittest tests.test_youtube.TestYouTubeUtils.test_extract_video_id_standard_url
+```
+
+### Test Structure
+
+- `tests/test_youtube.py`: Tests for YouTube utility functions
+- `tests/test_summarizer.py`: Tests for OpenAI summarization functionality
+- `tests/test_app.py`: Tests for Flask routes and API endpoints
+- `tests/test_models.py`: Tests for database models and operations
+
 ## Usage
 
 1. Visit the application in your web browser
