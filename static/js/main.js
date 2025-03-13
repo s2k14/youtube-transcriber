@@ -9,6 +9,11 @@ document.addEventListener('DOMContentLoaded', function() {
     const summaryDiv = document.getElementById('summary');
     const downloadBtn = document.getElementById('downloadBtn');
 
+    // Video info elements
+    const videoThumbnail = document.getElementById('videoThumbnail');
+    const videoTitle = document.getElementById('videoTitle');
+    const videoDuration = document.getElementById('videoDuration');
+
     function showLoading(show) {
         submitBtn.disabled = show;
         submitBtnText.style.display = show ? 'none' : 'inline';
@@ -23,6 +28,21 @@ document.addEventListener('DOMContentLoaded', function() {
     function hideError() {
         errorAlert.classList.add('d-none');
         errorAlert.textContent = '';
+    }
+
+    function formatDuration(duration) {
+        // Convert ISO 8601 duration to readable format
+        const match = duration.match(/PT(\d+H)?(\d+M)?(\d+S)?/);
+        const hours = (match[1] || '').replace('H', '');
+        const minutes = (match[2] || '').replace('M', '');
+        const seconds = (match[3] || '').replace('S', '');
+
+        let parts = [];
+        if (hours) parts.push(`${hours}h`);
+        if (minutes) parts.push(`${minutes}m`);
+        if (seconds) parts.push(`${seconds}s`);
+
+        return parts.join(' ') || '0s';
     }
 
     downloadBtn.addEventListener('click', async function() {
@@ -75,6 +95,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (!response.ok) {
                 throw new Error(data.error || 'An unexpected error occurred');
             }
+
+            // Update video information
+            videoThumbnail.src = data.video_info.thumbnail;
+            videoTitle.textContent = data.video_info.title;
+            videoDuration.textContent = `Duration: ${formatDuration(data.video_info.duration)}`;
 
             // Show results
             transcriptDiv.textContent = data.transcript;
