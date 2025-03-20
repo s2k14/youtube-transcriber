@@ -1,10 +1,10 @@
 import os
 import logging
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for
 from io import BytesIO
 from utils.youtube import get_video_transcript, get_video_info
 from utils.summarizer import generate_summary
-from models import VideoHistory
+from models import VideoHistory, AIModel # Assuming AIModel is defined elsewhere
 from db import db
 
 # Configure logging
@@ -117,6 +117,46 @@ def download_transcript():
 
     except Exception as e:
         logger.error(f"Error downloading transcript: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/models', methods=['GET'])
+def list_models():
+    models = AIModel.query.all()
+    return render_template('models.html', models=models)
+
+@app.route('/models/add', methods=['GET', 'POST'])
+def add_model():
+    if request.method == 'POST':
+        try:
+            model = AIModel(
+                name=request.form['name'],
+                provider=request.form['provider'],
+                model_id=request.form['model_id'],
+                api_key=request.form['api_key']
+            )
+            db.session.add(model)
+            db.session.commit()
+            return redirect(url_for('list_models'))
+        except Exception as e:
+            logger.error(f"Error adding model: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    return render_template('add_model.html')
+
+@app.route('/models/<int:model_id>/activate', methods=['POST'])
+def activate_model(model_id):
+    try:
+        # Deactivate all models first
+        AIModel.query.update({AIModel.is_active: False})
+
+        # Activate the selected model
+        model = AIModel.query.get_or_404(model_id)
+        model.is_active = True
+        db.session.commit()
+
+        return redirect(url_for('list_models'))
+    except Exception as e:
+        logger.error(f"Error activating model: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
