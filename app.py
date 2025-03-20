@@ -128,11 +128,19 @@ def list_models():
 def add_model():
     if request.method == 'POST':
         try:
+            api_key = request.form['api_key']
+            # Auto-detect provider based on API key format
+            provider = request.form['provider']
+            if api_key.startswith('sk-ant-'):
+                provider = 'anthropic'
+            elif api_key.startswith('sk-'):
+                provider = 'openai'
+
             model = AIModel(
                 name=request.form['name'],
-                provider=request.form['provider'],
+                provider=provider,
                 model_id=request.form['model_id'],
-                api_key=request.form['api_key']
+                api_key=api_key
             )
             db.session.add(model)
             db.session.commit()
@@ -157,6 +165,22 @@ def activate_model(model_id):
         return redirect(url_for('list_models'))
     except Exception as e:
         logger.error(f"Error activating model: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/models/active', methods=['GET'])
+def get_active_model_info():
+    try:
+        model = AIModel.query.filter_by(is_active=True).first()
+        if model:
+            return jsonify({
+                'name': model.name,
+                'provider': model.provider,
+                'model_id': model.model_id,
+                'is_active': model.is_active
+            })
+        return jsonify({'error': 'No active model found'}), 404
+    except Exception as e:
+        logger.error(f"Error getting active model info: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

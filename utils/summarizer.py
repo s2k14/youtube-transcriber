@@ -83,11 +83,13 @@ def get_active_model():
             logger.debug("Querying for active AI model")
             model = AIModel.query.filter_by(is_active=True).first()
             if not model:
-                logger.debug("No active model found, checking for OpenAI model")
+                logger.debug("No active model found, falling back to OpenAI model")
                 model = AIModel.query.filter_by(provider='openai').first()
+
             if not model:
                 raise ValueError("No AI model configured. Please add a model in the AI Models section.")
-            logger.debug(f"Using AI model: {model.name} ({model.provider})")
+
+            logger.debug(f"Selected model: {model.name} (Provider: {model.provider})")
             return model
     except Exception as e:
         logger.error(f"Error getting active model: {str(e)}")

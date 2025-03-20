@@ -19,17 +19,19 @@
                         <div class="mb-3">
                             <label for="provider" class="form-label">Provider</label>
                             <select class="form-select" id="provider" name="provider" required>
-                                <option value="openai">OpenAI</option>
-                                <option value="anthropic">Anthropic</option>
-                                <option value="google">Google AI</option>
-                                <option value="deepseek">DeepSeek</option>
+                                <option value="openai">OpenAI (API key starts with 'sk-')</option>
+                                <option value="anthropic">Anthropic (API key starts with 'sk-ant-')</option>
                             </select>
+                            <div class="form-text">Provider will be automatically adjusted based on your API key format</div>
                         </div>
 
                         <div class="mb-3">
                             <label for="model_id" class="form-label">Model ID</label>
                             <input type="text" class="form-control" id="model_id" name="model_id" required>
-                            <div class="form-text">The specific model identifier (e.g., gpt-4, claude-2)</div>
+                            <div class="form-text">
+                                OpenAI models: gpt-4, gpt-3.5-turbo<br>
+                                Anthropic models: claude-3-opus-20240229, claude-3-sonnet-20240229
+                            </div>
                         </div>
 
                         <div class="mb-3">
