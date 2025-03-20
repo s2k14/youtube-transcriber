@@ -32,7 +32,11 @@ with app.app_context():
 def index():
     # Get the last 5 processed videos
     history = VideoHistory.query.order_by(VideoHistory.created_at.desc()).limit(5).all()
-    return render_template('index.html', history=history)
+
+    # Get active model information
+    active_model = AIModel.query.filter_by(is_active=True).first()
+
+    return render_template('index.html', history=history, active_model=active_model)
 
 @app.route('/process', methods=['POST'])
 def process_video():
