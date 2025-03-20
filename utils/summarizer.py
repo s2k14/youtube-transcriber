@@ -18,6 +18,12 @@ SUMMARY_LENGTH_TOKENS = {
 def generate_summary(text, length='medium'):
     """Generate a summary of the given text using OpenAI's GPT model."""
     try:
+        if not text or not text.strip():
+            raise ValueError("Empty transcript provided")
+
+        if not OPENAI_API_KEY:
+            raise ValueError("OpenAI API key not found")
+
         max_tokens = SUMMARY_LENGTH_TOKENS.get(length, 500)
         length_prompt = f"Create a {length} summary"
 
@@ -33,6 +39,9 @@ def generate_summary(text, length='medium'):
             max_tokens=max_tokens
         )
         return response.choices[0].message.content
+    except ValueError as e:
+        logger.error(f"Validation error in generate_summary: {str(e)}")
+        raise
     except Exception as e:
         logger.error(f"Error generating summary: {str(e)}")
         raise Exception("Failed to generate summary. Please try again later.")

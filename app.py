@@ -44,28 +44,45 @@ def process_video():
             return jsonify({'error': 'Please provide a YouTube URL'}), 400
 
         # Get video information
-        video_info = get_video_info(youtube_url)
+        try:
+            video_info = get_video_info(youtube_url)
+        except Exception as e:
+            logger.error(f"Error getting video info: {str(e)}")
+            return jsonify({'error': str(e)}), 500
 
         # Get video transcript
-        transcript = get_video_transcript(youtube_url)
-        if not transcript:
-            return jsonify({'error': 'Could not extract transcript from the video'}), 400
+        try:
+            transcript = get_video_transcript(youtube_url)
+            if not transcript:
+                return jsonify({'error': 'Could not extract transcript from the video'}), 500
+        except Exception as e:
+            logger.error(f"Error getting transcript: {str(e)}")
+            return jsonify({'error': str(e)}), 500
 
         # Generate summary
-        summary = generate_summary(transcript, summary_length)
+        try:
+            summary = generate_summary(transcript, summary_length)
+        except Exception as e:
+            logger.error(f"Error generating summary: {str(e)}")
+            return jsonify({'error': str(e)}), 500
 
         # Save to history
-        history = VideoHistory(
-            video_url=youtube_url,
-            video_title=video_info['title'],
-            video_duration=video_info['duration'],
-            video_thumbnail=video_info['thumbnail'],
-            transcript=transcript,
-            summary=summary,
-            summary_length=summary_length
-        )
-        db.session.add(history)
-        db.session.commit()
+        try:
+            history = VideoHistory(
+                video_url=youtube_url,
+                video_title=video_info['title'],
+                video_duration=video_info['duration'],
+                video_thumbnail=video_info['thumbnail'],
+                transcript=transcript,
+                summary=summary,
+                summary_length=summary_length
+            )
+            db.session.add(history)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error saving to history: {str(e)}")
+            db.session.rollback()
+            return jsonify({'error': 'Failed to save video history'}), 500
 
         return jsonify({
             'success': True,
