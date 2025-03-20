@@ -19,6 +19,15 @@ class ModelProvider:
         self.provider = model_config.provider
         self.model_id = model_config.model_id
         self.api_key = model_config.api_key
+        logger.debug(f"Initializing {self.provider} model with ID: {self.model_id}")
+        self._validate_api_key()
+
+    def _validate_api_key(self):
+        """Validate API key format based on provider."""
+        if self.provider == 'openai' and not self.api_key.startswith('sk-'):
+            raise ValueError("Invalid OpenAI API key format")
+        elif self.provider == 'anthropic' and not self.api_key.startswith('sk-ant-'):
+            raise ValueError("Invalid Anthropic API key format")
 
     def generate_summary(self, text, max_tokens):
         if self.provider == 'openai':
@@ -30,7 +39,7 @@ class ModelProvider:
 
     def _openai_summary(self, text, max_tokens):
         try:
-            logger.debug(f"Using OpenAI model: {self.model_id}")
+            logger.debug("Generating summary with OpenAI")
             client = OpenAI(api_key=self.api_key)
             response = client.chat.completions.create(
                 model=self.model_id,
@@ -50,7 +59,7 @@ class ModelProvider:
 
     def _anthropic_summary(self, text, max_tokens):
         try:
-            logger.debug(f"Using Anthropic model: {self.model_id}")
+            logger.debug("Generating summary with Anthropic")
             client = anthropic.Anthropic(api_key=self.api_key)
             response = client.messages.create(
                 model=self.model_id,
