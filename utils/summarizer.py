@@ -3,6 +3,7 @@ from openai import OpenAI
 import anthropic
 import logging
 from models import AIModel
+from db import db
 
 logger = logging.getLogger(__name__)
 
@@ -27,41 +28,55 @@ class ModelProvider:
             raise ValueError(f"Unsupported provider: {self.provider}")
 
     def _openai_summary(self, text, max_tokens):
-        client = OpenAI(api_key=self.api_key)
-        response = client.chat.completions.create(
-            model=self.model_id,
-            messages=[
-                {
-                    "role": "system",
-                    "content": "You are a skilled summarizer. Create a summary of the following transcript. Focus on the main points and key takeaways."
-                },
-                {"role": "user", "content": text}
-            ],
-            max_tokens=max_tokens
-        )
-        return response.choices[0].message.content
+        try:
+            client = OpenAI(api_key=self.api_key)
+            response = client.chat.completions.create(
+                model=self.model_id,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a skilled summarizer. Create a summary of the following transcript. Focus on the main points and key takeaways."
+                    },
+                    {"role": "user", "content": text}
+                ],
+                max_tokens=max_tokens
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"OpenAI API error: {str(e)}")
+            raise Exception("Failed to generate summary with OpenAI. Please check your API key and model configuration.")
 
     def _anthropic_summary(self, text, max_tokens):
-        client = anthropic.Anthropic(api_key=self.api_key)
-        response = client.messages.create(
-            model=self.model_id,
-            max_tokens=max_tokens,
-            messages=[
-                {
-                    "role": "user",
-                    "content": f"Please summarize the following text, focusing on key points: {text}"
-                }
-            ]
-        )
-        return response.content[0].text
+        try:
+            client = anthropic.Anthropic(api_key=self.api_key)
+            response = client.messages.create(
+                model=self.model_id,
+                max_tokens=max_tokens,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"Please summarize the following text, focusing on key points: {text}"
+                    }
+                ]
+            )
+            return response.content[0].text
+        except Exception as e:
+            logger.error(f"Anthropic API error: {str(e)}")
+            raise Exception("Failed to generate summary with Anthropic. Please check your API key and model configuration.")
 
 def get_active_model():
     """Get the currently active AI model configuration."""
-    model = AIModel.query.filter_by(is_active=True).first()
-    if not model:
-        # Fall back to OpenAI if no active model is set
-        model = AIModel.query.filter_by(provider='openai').first()
-    return model
+    try:
+        model = AIModel.query.filter_by(is_active=True).first()
+        if not model:
+            # Fall back to OpenAI if no active model is set
+            model = AIModel.query.filter_by(provider='openai').first()
+        if not model:
+            raise ValueError("No AI model configured. Please add a model in the AI Models section.")
+        return model
+    except Exception as e:
+        logger.error(f"Error getting active model: {str(e)}")
+        raise Exception("Failed to get active AI model configuration.")
 
 def generate_summary(text, length='medium'):
     """Generate a summary of the given text using the selected AI model."""
@@ -82,4 +97,4 @@ def generate_summary(text, length='medium'):
         raise
     except Exception as e:
         logger.error(f"Error generating summary: {str(e)}")
-        raise Exception("Failed to generate summary. Please try again later.")
+        raise Exception("Failed to generate summary. Please check the AI model configuration and try again.")
