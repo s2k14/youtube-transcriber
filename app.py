@@ -1,10 +1,10 @@
 import os
 import logging
-from flask import Flask, render_template, request, jsonify, send_file
+from flask import Flask, render_template, request, jsonify, send_file, redirect, url_for
 from io import BytesIO
 from utils.youtube import get_video_transcript, get_video_info
 from utils.summarizer import generate_summary
-from models import VideoHistory
+from models import VideoHistory, AIModel # Assuming AIModel is defined elsewhere
 from db import db
 
 # Configure logging
@@ -32,7 +32,11 @@ with app.app_context():
 def index():
     # Get the last 5 processed videos
     history = VideoHistory.query.order_by(VideoHistory.created_at.desc()).limit(5).all()
-    return render_template('index.html', history=history)
+
+    # Get active model information
+    active_model = AIModel.query.filter_by(is_active=True).first()
+
+    return render_template('index.html', history=history, active_model=active_model)
 
 @app.route('/process', methods=['POST'])
 def process_video():
@@ -44,28 +48,45 @@ def process_video():
             return jsonify({'error': 'Please provide a YouTube URL'}), 400
 
         # Get video information
-        video_info = get_video_info(youtube_url)
+        try:
+            video_info = get_video_info(youtube_url)
+        except Exception as e:
+            logger.error(f"Error getting video info: {str(e)}")
+            return jsonify({'error': str(e)}), 500
 
         # Get video transcript
-        transcript = get_video_transcript(youtube_url)
-        if not transcript:
-            return jsonify({'error': 'Could not extract transcript from the video'}), 400
+        try:
+            transcript = get_video_transcript(youtube_url)
+            if not transcript:
+                return jsonify({'error': 'Could not extract transcript from the video'}), 500
+        except Exception as e:
+            logger.error(f"Error getting transcript: {str(e)}")
+            return jsonify({'error': str(e)}), 500
 
         # Generate summary
-        summary = generate_summary(transcript, summary_length)
+        try:
+            summary = generate_summary(transcript, summary_length)
+        except Exception as e:
+            logger.error(f"Error generating summary: {str(e)}")
+            return jsonify({'error': str(e)}), 500
 
         # Save to history
-        history = VideoHistory(
-            video_url=youtube_url,
-            video_title=video_info['title'],
-            video_duration=video_info['duration'],
-            video_thumbnail=video_info['thumbnail'],
-            transcript=transcript,
-            summary=summary,
-            summary_length=summary_length
-        )
-        db.session.add(history)
-        db.session.commit()
+        try:
+            history = VideoHistory(
+                video_url=youtube_url,
+                video_title=video_info['title'],
+                video_duration=video_info['duration'],
+                video_thumbnail=video_info['thumbnail'],
+                transcript=transcript,
+                summary=summary,
+                summary_length=summary_length
+            )
+            db.session.add(history)
+            db.session.commit()
+        except Exception as e:
+            logger.error(f"Error saving to history: {str(e)}")
+            db.session.rollback()
+            return jsonify({'error': 'Failed to save video history'}), 500
 
         return jsonify({
             'success': True,
@@ -100,6 +121,70 @@ def download_transcript():
 
     except Exception as e:
         logger.error(f"Error downloading transcript: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/models', methods=['GET'])
+def list_models():
+    models = AIModel.query.all()
+    return render_template('models.html', models=models)
+
+@app.route('/models/add', methods=['GET', 'POST'])
+def add_model():
+    if request.method == 'POST':
+        try:
+            api_key = request.form['api_key']
+            # Auto-detect provider based on API key format
+            provider = request.form['provider']
+            if api_key.startswith('sk-ant-'):
+                provider = 'anthropic'
+            elif api_key.startswith('sk-'):
+                provider = 'openai'
+
+            model = AIModel(
+                name=request.form['name'],
+                provider=provider,
+                model_id=request.form['model_id'],
+                api_key=api_key
+            )
+            db.session.add(model)
+            db.session.commit()
+            return redirect(url_for('list_models'))
+        except Exception as e:
+            logger.error(f"Error adding model: {str(e)}")
+            return jsonify({'error': str(e)}), 500
+
+    return render_template('add_model.html')
+
+@app.route('/models/<int:model_id>/activate', methods=['POST'])
+def activate_model(model_id):
+    try:
+        # Deactivate all models first
+        AIModel.query.update({AIModel.is_active: False})
+
+        # Activate the selected model
+        model = AIModel.query.get_or_404(model_id)
+        model.is_active = True
+        db.session.commit()
+
+        return redirect(url_for('list_models'))
+    except Exception as e:
+        logger.error(f"Error activating model: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/models/active', methods=['GET'])
+def get_active_model_info():
+    try:
+        model = AIModel.query.filter_by(is_active=True).first()
+        if model:
+            return jsonify({
+                'name': model.name,
+                'provider': model.provider,
+                'model_id': model.model_id,
+                'is_active': model.is_active
+            })
+        return jsonify({'error': 'No active model found'}), 404
+    except Exception as e:
+        logger.error(f"Error getting active model info: {str(e)}")
         return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':

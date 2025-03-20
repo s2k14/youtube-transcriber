@@ -1,13 +1,12 @@
 import os
-from openai import OpenAI
 import logging
+from openai import OpenAI
+import anthropic
+from flask import current_app
+from models import AIModel
+from db import db
 
 logger = logging.getLogger(__name__)
-
-# the newest OpenAI model is "gpt-4o" which was released May 13, 2024.
-# do not change this unless explicitly requested by the user
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-openai = OpenAI(api_key=OPENAI_API_KEY)
 
 SUMMARY_LENGTH_TOKENS = {
     'short': 250,
@@ -15,24 +14,104 @@ SUMMARY_LENGTH_TOKENS = {
     'long': 1000
 }
 
-def generate_summary(text, length='medium'):
-    """Generate a summary of the given text using OpenAI's GPT model."""
-    try:
-        max_tokens = SUMMARY_LENGTH_TOKENS.get(length, 500)
-        length_prompt = f"Create a {length} summary"
+class ModelProvider:
+    def __init__(self, model_config):
+        self.provider = model_config.provider
+        self.model_id = model_config.model_id
+        self.api_key = model_config.api_key
+        logger.debug(f"Initializing {self.provider} model with ID: {self.model_id}")
+        self._validate_api_key()
 
-        response = openai.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {
-                    "role": "system",
-                    "content": f"You are a skilled summarizer. {length_prompt} of the following transcript. Focus on the main points and key takeaways."
-                },
-                {"role": "user", "content": text}
-            ],
-            max_tokens=max_tokens
-        )
-        return response.choices[0].message.content
+    def _validate_api_key(self):
+        """Validate API key format based on provider."""
+        if self.provider == 'openai' and not self.api_key.startswith('sk-'):
+            raise ValueError("Invalid OpenAI API key format")
+        elif self.provider == 'anthropic' and not self.api_key.startswith('sk-ant-'):
+            raise ValueError("Invalid Anthropic API key format")
+
+    def generate_summary(self, text, max_tokens):
+        if self.provider == 'openai':
+            return self._openai_summary(text, max_tokens)
+        elif self.provider == 'anthropic':
+            return self._anthropic_summary(text, max_tokens)
+        else:
+            raise ValueError(f"Unsupported provider: {self.provider}")
+
+    def _openai_summary(self, text, max_tokens):
+        try:
+            logger.debug("Generating summary with OpenAI")
+            client = OpenAI(api_key=self.api_key)
+            response = client.chat.completions.create(
+                model=self.model_id,
+                messages=[
+                    {
+                        "role": "system",
+                        "content": "You are a skilled summarizer. Create a summary of the following transcript. Focus on the main points and key takeaways."
+                    },
+                    {"role": "user", "content": text}
+                ],
+                max_tokens=max_tokens
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            logger.error(f"OpenAI API error: {str(e)}")
+            raise Exception(f"Failed to generate summary with OpenAI: {str(e)}")
+
+    def _anthropic_summary(self, text, max_tokens):
+        try:
+            logger.debug("Generating summary with Anthropic")
+            client = anthropic.Anthropic(api_key=self.api_key)
+            response = client.messages.create(
+                model=self.model_id,
+                max_tokens=max_tokens,
+                messages=[
+                    {
+                        "role": "user",
+                        "content": f"Please summarize the following text, focusing on key points: {text}"
+                    }
+                ]
+            )
+            return response.content[0].text
+        except Exception as e:
+            logger.error(f"Anthropic API error: {str(e)}")
+            raise Exception(f"Failed to generate summary with Anthropic: {str(e)}")
+
+def get_active_model():
+    """Get the currently active AI model configuration."""
+    try:
+        with current_app.app_context():
+            logger.debug("Querying for active AI model")
+            model = AIModel.query.filter_by(is_active=True).first()
+            if not model:
+                logger.debug("No active model found, falling back to OpenAI model")
+                model = AIModel.query.filter_by(provider='openai').first()
+
+            if not model:
+                raise ValueError("No AI model configured. Please add a model in the AI Models section.")
+
+            logger.debug(f"Selected model: {model.name} (Provider: {model.provider})")
+            return model
+    except Exception as e:
+        logger.error(f"Error getting active model: {str(e)}")
+        raise Exception(f"Failed to get active AI model configuration: {str(e)}")
+
+def generate_summary(text, length='medium'):
+    """Generate a summary of the given text using the selected AI model."""
+    try:
+        if not text or not text.strip():
+            raise ValueError("Empty transcript provided")
+
+        model_config = get_active_model()
+        if not model_config:
+            raise ValueError("No AI model configured")
+
+        max_tokens = SUMMARY_LENGTH_TOKENS.get(length, 500)
+        provider = ModelProvider(model_config)
+
+        return provider.generate_summary(text, max_tokens)
+    except ValueError as e:
+        logger.error(f"Validation error in generate_summary: {str(e)}")
+        raise
     except Exception as e:
         logger.error(f"Error generating summary: {str(e)}")
-        raise Exception("Failed to generate summary. Please try again later.")
+        raise Exception(f"Failed to generate summary: {str(e)}")

@@ -6,7 +6,10 @@ A Flask-based web application that transcribes YouTube videos and generates AI-p
 
 - 🎥 Video Information Display (title, duration, thumbnail)
 - 📝 Automatic Video Transcription
-- 🤖 AI-Powered Summarization with adjustable length (short, medium, long)
+- 🤖 Multi-Provider AI Summarization (OpenAI, Anthropic)
+  - Configurable model selection
+  - Dynamic provider switching
+  - Support for multiple API keys
 - 💾 Download Transcripts as Text Files
 - 📚 History of Previously Processed Videos
 
@@ -16,7 +19,9 @@ Before running the application, you'll need:
 
 1. Python 3.11 or later
 2. A YouTube Data API key (for video information)
-3. An OpenAI API key (for summarization)
+3. At least one AI provider API key:
+   - OpenAI API key (starts with 'sk-')
+   - Anthropic API key (starts with 'sk-ant-')
 4. PostgreSQL database
 
 ## Installation
@@ -36,70 +41,48 @@ pip install -r requirements.txt
 Create a `.env` file in the project root with the following variables:
 ```env
 YOUTUBE_API_KEY=your_youtube_api_key
-OPENAI_API_KEY=your_openai_api_key
 DATABASE_URL=postgresql://username:password@localhost:5432/dbname
 SESSION_SECRET=your_secret_key
 ```
 
-## Local Development
+## AI Model Configuration
 
-1. Create and set up the database:
-```bash
-# Using psql
-createdb youtube_transcriber
-```
+The application supports multiple AI providers for generating summaries:
 
-2. Run the Flask application:
-```bash
-python main.py
-```
+### Supported Providers
+1. OpenAI
+   - Model IDs: gpt-4, gpt-3.5-turbo
+   - API Key format: sk-...
+2. Anthropic
+   - Model IDs: claude-3-opus-20240229, claude-3-sonnet-20240229, claude-3-haiku-20240307
+   - API Key format: sk-ant-...
 
-The application will be available at `http://localhost:5000`
+### Adding a New Model
+1. Navigate to the AI Models page
+2. Click "Add New Model"
+3. Enter:
+   - Model Name (for display)
+   - Provider (OpenAI or Anthropic)
+   - Model ID (from supported list)
+   - API Key
+4. The provider will be automatically detected based on the API key format
 
-## Testing
-
-The project includes a comprehensive test suite covering utilities, API endpoints, and database models. No external services are required for testing as all external APIs are mocked.
-
-### Running All Tests
-
-To run the complete test suite:
-
-```bash
-python run_tests.py
-```
-
-### Running Specific Tests
-
-To run a specific test file:
-
-```bash
-python -m unittest tests.test_youtube
-python -m unittest tests.test_summarizer
-python -m unittest tests.test_app
-python -m unittest tests.test_models
-```
-
-To run a specific test case:
-
-```bash
-python -m unittest tests.test_youtube.TestYouTubeUtils.test_extract_video_id_standard_url
-```
-
-### Test Structure
-
-- `tests/test_youtube.py`: Tests for YouTube utility functions
-- `tests/test_summarizer.py`: Tests for OpenAI summarization functionality
-- `tests/test_app.py`: Tests for Flask routes and API endpoints
-- `tests/test_models.py`: Tests for database models and operations
+### Important Notes
+- Only one model can be active at a time
+- The application will automatically validate API keys and model IDs
+- Models can be activated/deactivated through the UI
+- Failed API calls will show detailed error messages
 
 ## Usage
 
 1. Visit the application in your web browser
-2. Paste a YouTube video URL in the input field
-3. Select your desired summary length (short, medium, or long)
-4. Click "Transcribe & Summarize"
-5. View the video information, summary, and full transcript
-6. Download the transcript if needed
+2. Configure an AI model in the AI Models section
+3. On the main page:
+   - Paste a YouTube video URL
+   - Select your desired summary length (short, medium, or long)
+   - Click "Transcribe & Summarize"
+4. View the video information, summary, and full transcript
+5. Download the transcript if needed
 
 ## Contributing
 
