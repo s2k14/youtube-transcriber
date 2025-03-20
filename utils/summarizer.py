@@ -1,7 +1,8 @@
 import os
+import logging
 from openai import OpenAI
 import anthropic
-import logging
+from flask import current_app
 from models import AIModel
 from db import db
 
@@ -29,6 +30,7 @@ class ModelProvider:
 
     def _openai_summary(self, text, max_tokens):
         try:
+            logger.debug(f"Using OpenAI model: {self.model_id}")
             client = OpenAI(api_key=self.api_key)
             response = client.chat.completions.create(
                 model=self.model_id,
@@ -44,10 +46,11 @@ class ModelProvider:
             return response.choices[0].message.content
         except Exception as e:
             logger.error(f"OpenAI API error: {str(e)}")
-            raise Exception("Failed to generate summary with OpenAI. Please check your API key and model configuration.")
+            raise Exception(f"Failed to generate summary with OpenAI: {str(e)}")
 
     def _anthropic_summary(self, text, max_tokens):
         try:
+            logger.debug(f"Using Anthropic model: {self.model_id}")
             client = anthropic.Anthropic(api_key=self.api_key)
             response = client.messages.create(
                 model=self.model_id,
@@ -62,21 +65,24 @@ class ModelProvider:
             return response.content[0].text
         except Exception as e:
             logger.error(f"Anthropic API error: {str(e)}")
-            raise Exception("Failed to generate summary with Anthropic. Please check your API key and model configuration.")
+            raise Exception(f"Failed to generate summary with Anthropic: {str(e)}")
 
 def get_active_model():
     """Get the currently active AI model configuration."""
     try:
-        model = AIModel.query.filter_by(is_active=True).first()
-        if not model:
-            # Fall back to OpenAI if no active model is set
-            model = AIModel.query.filter_by(provider='openai').first()
-        if not model:
-            raise ValueError("No AI model configured. Please add a model in the AI Models section.")
-        return model
+        with current_app.app_context():
+            logger.debug("Querying for active AI model")
+            model = AIModel.query.filter_by(is_active=True).first()
+            if not model:
+                logger.debug("No active model found, checking for OpenAI model")
+                model = AIModel.query.filter_by(provider='openai').first()
+            if not model:
+                raise ValueError("No AI model configured. Please add a model in the AI Models section.")
+            logger.debug(f"Using AI model: {model.name} ({model.provider})")
+            return model
     except Exception as e:
         logger.error(f"Error getting active model: {str(e)}")
-        raise Exception("Failed to get active AI model configuration.")
+        raise Exception(f"Failed to get active AI model configuration: {str(e)}")
 
 def generate_summary(text, length='medium'):
     """Generate a summary of the given text using the selected AI model."""
@@ -97,4 +103,4 @@ def generate_summary(text, length='medium'):
         raise
     except Exception as e:
         logger.error(f"Error generating summary: {str(e)}")
-        raise Exception("Failed to generate summary. Please check the AI model configuration and try again.")
+        raise Exception(f"Failed to generate summary: {str(e)}")
